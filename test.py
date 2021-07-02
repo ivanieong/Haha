@@ -4,6 +4,9 @@ import datetime
 import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+def countif(value, seq):
+    return sum(1 for item in seq if (value <= item))
+
 def gen_data(data, day_range):
   dayHigh = data['High'].reset_index(drop=True)
   dayOpen = data['Open'].reset_index(drop=True)
@@ -56,9 +59,14 @@ for y in years:
   all_years_output.append(output)
 print(all_years_output)
 
+#find 90% value
 for j in range(day_range):
   for k in range(day_range):
     tmp = []
     for i in range(len(years)):
       tmp.append(all_years_output[i][j,k])
-    print(tmp)
+    tmp = np.sort(tmp)
+    print(tmp[1])
+    #countif
+    for value in tmp:
+      print(countif(value, tmp)/len(years))
