@@ -1,14 +1,26 @@
 import pandas as pd
 import numpy as np
+import datetime
+import os
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-dd = pd.read_csv('0700.csv')
-dd = dd.dropna()
-df = dd.reset_index(drop=True)
+raw_data = pd.read_csv('0700.csv', index_col = 'Date')
+print(raw_data)
+raw_data = raw_data.head(20)
+new_index = pd.date_range(start='2004-06-01', end='2004-06-30')
+raw_data.reindex(new_index)
+print(raw_data)
+
+#dd = pd.read_csv('0700.csv', parse_dates=['Date'])
+raw_data[["day", "month", "year"]] = raw_data["Date"].str.split("/", expand = True)
+#print(raw_data)
+raw_data = raw_data.dropna()
+df = raw_data.reset_index(drop=True)
 
 (row, num_col) = df.shape
 
-a = df['High'].head(60)
-b = df['Open'].head(60)
+a = df['High'].head(20)
+b = df['Open'].head(20)
 
 output = []
 for i in range(len(b)):
