@@ -8,14 +8,16 @@ def countif(value, seq):
     return sum(1 for item in seq if (value <= item))
 
 def gen_data(data, day_range):
-  dayHigh = data['High'].reset_index(drop=True)
+  dayHigh = data['High'].reset_index(drop=True) 
   dayOpen = data['Low'].reset_index(drop=True)
+  dayClose = data['Close'].reset_index(drop=True)
+  dayAdjClose = data['Adj Close'].reset_index(drop=True)
   output = []
   for i in range(day_range):
     tmp_array = []
     for j in range(day_range):
       if ( j >= i ):
-        up = ((dayHigh[:(j+1)].max()/dayOpen[i]) - 1) * 100
+        up = (((dayHigh[i:(j+1)].max() + dayAdjClose[j] - dayClose[j])/(dayOpen[i] + dayAdjClose[i] - dayClose[i])) - 1) * 100
       else:
         up = 0
       tmp_array.insert(j, up)
@@ -49,10 +51,10 @@ print(years, months, days)
 #end get raw data
 
 #begin input value
-bm = 6
-em = 6
-bd = 11
-ed = 15
+bm = 5
+em = 7
+bd = 1
+ed = 30
 prob = 0.9
 #end input value
 all_years_output = []
@@ -67,7 +69,7 @@ for y in years:
   day_range = len(request_data)
   output = gen_data(request_data, len(request_data))
   all_years_output.append(output)
-print(all_years_output)
+#print(all_years_output)
 
 #find 90% value
 pos = np.floor((1 - prob) * len(years)).astype(int)
@@ -88,4 +90,6 @@ for j in range(day_range):
   final_output.append(final_row)
   prob_output.append(prob_row)
 print(np.round_(final_output, decimals = 2))
+print(np.amax(final_output))
+print(np.where(final_output == np.amax(final_output)))
 print(np.round_(prob_output, decimals = 2))
