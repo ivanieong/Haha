@@ -73,17 +73,18 @@ def get_final_output(prob, history_years, day_range):
   return (np.round_(final_output, decimals = 2)), (np.round_(prob_output, decimals = 2)), (np.amax(final_output))
 
 #begin input value
-begin_month = 6
-end_month = 6
-begin_day = 11
-end_day = 15
+begin_month = 7
+end_month = 7
+begin_day = 5
+end_day = 5
 prob = 0.9
 code = '0700'
 #end input value
 raw_data, begin_year = get_raw_data(code)
 day_range = (pd.Timestamp(begin_year,end_month,end_day) - pd.Timestamp(begin_year,begin_month,begin_day)).days + 1
 years = np.sort(raw_data.Year.unique())
-#years = [2019,2020,2021]
+#years = [2021]
+#history_years = years
 history_years = np.delete(years, len(years) - 1)
 #months = np.sort(raw_data.Month.unique())
 #days = np.sort(raw_data.Day.unique())
@@ -91,6 +92,8 @@ history_years = np.delete(years, len(years) - 1)
 high_of_every_year = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
 final_output, prob_output, higest_pencentage = get_final_output(prob, history_years, day_range)
 print(final_output)
+final_output_df = pd.DataFrame(final_output)
+final_output_df.to_csv(code + '_output.csv')
 print(prob_output) 
 print(str(higest_pencentage) + '%')
 result_begin_offset = np.where(final_output == np.amax(final_output))[0][0]
