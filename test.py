@@ -11,17 +11,13 @@ def gen_data(data, day_range):
   dayLow = data['Low'].reset_index(drop=True)
   dayClose = data['Close'].reset_index(drop=True)
   dayAdjClose = data['Adj Close'].reset_index(drop=True)
-  output = []
+  rows, cols = (day_range, day_range)
+  output = [[0 for i in range(cols)] for j in range(rows)]
   for i in range(day_range):
-    tmp_array = []
-    for j in range(day_range):
+    for j in range(i, day_range):
       if ( j >= i ):
         period_highest = (((dayHigh[i:(j+1)].max() + dayAdjClose[i] - dayClose[i])/(dayLow[i] + dayAdjClose[i] - dayClose[i])) - 1) * 100
-      else:
-        period_highest = 0
-      tmp_array.insert(j, period_highest)
-      continue
-    output.append(tmp_array)
+        output[i][j] = period_highest
   output = np.round_(output, decimals = 2)
   print(output)
   return output
@@ -77,10 +73,10 @@ def get_final_output(prob, history_years, day_range):
   return (np.round_(final_output, decimals = 2)), (np.round_(prob_output, decimals = 2)), (np.amax(final_output))
 
 #begin input value
-begin_month = 7
-end_month = 7
-begin_day = 1
-end_day = 31
+begin_month = 6
+end_month = 6
+begin_day = 11
+end_day = 15
 prob = 0.9
 code = '0700'
 #end input value
