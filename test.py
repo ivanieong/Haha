@@ -3,10 +3,16 @@ import numpy as np
 import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+#加back test 今年和過去
 def countif(value, seq):
-    return sum(1 for item in seq if (value <= item))
+  return sum(1 for item in seq if (value <= item))
 
-def gen_data(data, day_range): # fix 閏年, 需忽略2-29
+def remove_29Feb(s):
+  mask = (s.index.year % 4 == 0) & ((s.index.year % 100 != 0) | (s.index.year % 400 == 0)) & (s.index.month == 2) & (s.index.day == 29)
+  s = s.loc[~mask]
+  return s
+
+def gen_data(data, day_range):
   dayHigh = data['High'].reset_index(drop=True) 
   dayLow = data['Low'].reset_index(drop=True)
   dayClose = data['Close'].reset_index(drop=True)
@@ -26,13 +32,17 @@ def get_raw_data(code):
   raw_data = pd.read_csv(code + '.csv', index_col='Date')
   raw_data.index = pd.to_datetime(raw_data.index)
   begin_year = raw_data.index.year.min()
-  set_begin = pd.DataFrame({},index =[pd.to_datetime(str(begin_year) + '-01-01')])
-  raw_data = pd.concat([set_begin, raw_data])
-  raw_data = raw_data.resample('1D').bfill().reset_index()
-  raw_data = raw_data.fillna(method="ffill").fillna(method="bfill")
+  #========begin resample raw data========
+  if (pd.to_datetime(str(begin_year) + '-01-01') not in raw_data.index):
+    set_begin = pd.DataFrame({},index =[pd.to_datetime(str(begin_year) + '-01-01')])
+    raw_data = pd.concat([set_begin, raw_data])
+  raw_data = raw_data.resample('1D').bfill()
+  ##========end resample raw data========
+  raw_data = remove_29Feb(raw_data)
+  raw_data = raw_data.fillna(method="ffill").fillna(method="bfill").reset_index()
   raw_data.rename(columns = {'index':'Date'}, inplace=True)
-  print(raw_data)
   raw_data[["Year"]] = raw_data["Date"].dt.year
+  print(raw_data)
   return raw_data, begin_year
 
 def get_high_low_of_every_year(raw_data, years, begin_month, begin_day, end_month, end_day):
@@ -45,14 +55,13 @@ def get_high_low_of_every_year(raw_data, years, begin_month, begin_day, end_mont
     #print(request_data)
     output = gen_data(request_data, len(request_data))
     high_of_every_year.append(output)
-  return high_of_every_year
+  return high_of_every_year, len(request_data)
 
 #find 90% value
 def get_final_output(prob, history_years, day_range):
   pos = np.floor((1 - prob) * len(history_years)).astype(int)
   final_output = []
   prob_output = []
-  #print("find pos in tmp:" + str(pos))
   for j in range(day_range):
     final_row = []
     prob_row = []
@@ -68,32 +77,32 @@ def get_final_output(prob, history_years, day_range):
     prob_output.append(prob_row)
   return (np.round_(final_output, decimals = 2)), (np.round_(prob_output, decimals = 2)), (np.amax(final_output))
 
-#begin input value
+#=========begin input value=========
 begin_month = 6
 end_month = 6
-begin_day = 10
-end_day = 30
-prob = 0.9
+begin_day = 1
+end_day = 15
+prob = 0.8
 code = '0700'
-#end input value
+##=========end input value=========
+
 raw_data, begin_year = get_raw_data(code)
-day_range = (pd.Timestamp(begin_year,end_month,end_day) - pd.Timestamp(begin_year,begin_month,begin_day)).days + 1
 years = np.sort(raw_data.Year.unique())
 #years = [2021]
 #history_years = years
 history_years = np.delete(years, len(years) - 1)
-#months = np.sort(raw_data.Month.unique())
-#days = np.sort(raw_data.Day.unique())
 #print(history_years, months, days)
-high_of_every_year = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
+high_of_every_year, day_range = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
 final_output, prob_output, higest_pencentage = get_final_output(prob, history_years, day_range)
+print('=========歷史矩陣=========')
 print(final_output)
-final_output_df = pd.DataFrame(final_output)
-final_output_df.to_csv(code + '_output.csv') # For backtest
 #print(prob_output) 
-print(code + '過往歷史最高升波幅:' + str(higest_pencentage) + '%')
+print(code + '過往歷史' + str(prob*100) + '%機率出現最高升波幅:' + str(higest_pencentage) + '%')
 result_begin_offset = np.where(final_output == np.amax(final_output))[0][0]
 result_end_offset = np.where(final_output == np.amax(final_output))[1][0]
 result_begin_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_begin_offset)
 result_end_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_end_offset)
 print('時段: ' + str(result_begin_date.month) + "-" + str(result_begin_date.day) + " to " + str(result_end_date.month) + "-" + str(result_end_date.day))
+
+final_output_df = pd.DataFrame(final_output)
+final_output_df.to_excel(code + '_output.xlsx') # For backtest
