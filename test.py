@@ -59,7 +59,7 @@ def get_high_low_of_every_year(raw_data, years, begin_month, begin_day, end_mont
   return high_of_every_year, len(request_data)
 
 #find 90% value
-def get_final_output(prob, history_years, day_range):
+def get_final_output(high_of_every_year, prob, history_years, day_range):
   pos = np.floor((1 - prob) * len(history_years)).astype(int)
   final_output = []
   prob_output = []
@@ -78,43 +78,52 @@ def get_final_output(prob, history_years, day_range):
     prob_output.append(prob_row)
   return (np.round_(final_output, decimals = 2)), (np.round_(prob_output, decimals = 2)), (np.amax(final_output))
 
-#=========begin input value=========
-begin_month = 5
-end_month = 5
-begin_day = 11
-end_day = 25
-prob = 0.9
-code = '0670.HK'
-##=========end input value=========
+def main():
+  #=========begin input value=========
+  begin_month = 5
+  end_month = 5
+  begin_day = 11
+  end_day = 25
+  prob = 0.9
+  code = '0670.HK'
+  ##=========end input value=========
 
-code = input("輸入股票代號(輸入格式如: 0700.HK/MSFT/1234.TW 等): ")
-begin_month = int(input("輸入開始月份(1-12): "))
-begin_day = int(input("輸入開始日期(1-31): "))
-end_month = int(input("輸入結束月份(1-12): "))
-end_day = int(input("輸入結束日期(1-31): "))
-prob = int(input("輸入出現機率%(輸入格式如: 90, 80): ")) / 100
+  '''
+  code = input("輸入股票代號(輸入格式如: 0700.HK/MSFT/1234.TW 等): ")
+  begin_month = int(input("輸入開始月份(1-12): "))
+  begin_day = int(input("輸入開始日期(1-31): "))
+  end_month = int(input("輸入結束月份(1-12): "))
+  end_day = int(input("輸入結束日期(1-31): "))
+  prob = int(input("輸入出現機率%(輸入格式如: 90, 80): ")) / 100
+  yf.download(code, period="max").to_csv(code + '.csv')
+  '''
 
-yf.download(code, period="max").to_csv(code + '.csv')
-raw_data, begin_year = get_raw_data(code)
-years = np.sort(raw_data.Year.unique())
-#years = [2021]
-if (len(years) > 1):
-  history_years = np.delete(years, len(years) - 1)
-else:
-  history_years = years
-#print(history_years, months, days)
-high_of_every_year, day_range = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
-final_output, prob_output, higest_pencentage = get_final_output(prob, history_years, day_range)
-#print('=========歷史矩陣=========')
-#print(final_output)
-#print(prob_output) 
-print(code + '過往' + str(len(years)) + '年' + str(prob*100) + '%機率出現最高升波幅:' + str(higest_pencentage) + '%')
-result_begin_offset = np.where(final_output == np.amax(final_output))[0][0]
-result_end_offset = np.where(final_output == np.amax(final_output))[1][0]
-result_begin_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_begin_offset)
-result_end_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_end_offset)
-print('出現時段: ' + str(result_begin_date.month) + "-" + str(result_begin_date.day) + "最低位至" + str(result_end_date.month) + "-" + str(result_end_date.day))
+  raw_data, begin_year = get_raw_data(code)
+  years = np.sort(raw_data.Year.unique())
+  #years = [2021]
+  if (len(years) > 1):
+    history_years = np.delete(years, len(years) - 1)
+  else:
+    history_years = years
+  #print(history_years, months, days)
+  high_of_every_year, day_range = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
+  final_output, prob_output, higest_pencentage = get_final_output(high_of_every_year, prob, history_years, day_range)
+  #print('=========歷史矩陣=========')
+  #print(final_output)
+  #print(prob_output) 
+  print('在' + str(begin_month) + '月' + str(begin_day) + '日到' +str(end_month) + '月' + str(end_day) + '日中:')
+  print(code + '過往' + str(len(years)) + '年' + str(prob*100) + '%機率出現最高升波幅:' + str(higest_pencentage) + '%')
+  result_begin_offset = np.where(final_output == np.amax(final_output))[0][0]
+  result_end_offset = np.where(final_output == np.amax(final_output))[1][0]
+  result_begin_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_begin_offset)
+  result_end_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_end_offset)
+  print('出現時段: ' + str(result_begin_date.month) + "-" + str(result_begin_date.day) + "最低位至" + str(result_end_date.month) + "-" + str(result_end_date.day))
 
-final_output_df = pd.DataFrame(final_output)
-final_output_df.to_excel(code + '_output.xlsx') # For backtest
-input("任意鍵退出: ")
+  final_output_df = pd.DataFrame(final_output)
+  final_output_df.to_excel(code + '_output.xlsx') # For backtest
+  user_input = input("任意鍵退出或r重新開始: ")
+  if (user_input == 'r'):
+    main()
+
+if __name__ == "__main__":
+  main()
