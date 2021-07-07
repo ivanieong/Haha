@@ -17,13 +17,13 @@ def gen_data(data, day_range):
   dayHigh = data['High'].reset_index(drop=True) 
   dayLow = data['Low'].reset_index(drop=True)
   dayClose = data['Close'].reset_index(drop=True)
-  dayAdjClose = data['Adj Close'].reset_index(drop=True)
+
   rows, cols = (day_range, day_range)
   output = [[0 for i in range(cols)] for j in range(rows)]
   for i in range(day_range):
     for j in range(i + 1, day_range):
       if ( j > i ):
-        period_highest = (((dayHigh[i:(j+1)].max() + dayAdjClose[i] - dayClose[i])/(dayLow[i] + dayAdjClose[i] - dayClose[i])) - 1) * 100
+        period_highest = (((dayHigh[i:(j+1)].max())/(dayLow[i])) - 1) * 100
         output[i][j] = period_highest
   output = np.round_(output, decimals = 2)
   #print(output)
@@ -81,11 +81,11 @@ def get_final_output(high_of_every_year, prob, history_years, day_range):
 def main():
   #=========begin input value=========
   begin_month = 5
-  end_month = 5
-  begin_day = 11
-  end_day = 25
+  end_month = 7
+  begin_day = 25
+  end_day = 19
   prob = 0.9
-  code = '0670.HK'
+  code = '0700.HK'
   ##=========end input value=========
 
   '''
@@ -95,8 +95,8 @@ def main():
   end_month = int(input("輸入結束月份(1-12): "))
   end_day = int(input("輸入結束日期(1-31): "))
   prob = int(input("輸入出現機率%(輸入格式如: 90, 80): ")) / 100
-  yf.download(code, period="max").to_csv(code + '.csv')
   '''
+  yf.download(code, period="max", auto_adjust=True, proxy="192.168.61.211:80").to_csv(code + '.csv')
 
   raw_data, begin_year = get_raw_data(code)
   years = np.sort(raw_data.Year.unique())
