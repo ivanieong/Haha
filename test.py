@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import os
+import datetime as dt
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 class Result:
@@ -14,9 +15,9 @@ class Result:
     print(code + '過往' + str(len(years)) + '年' + str(prob*100) + '%機率出現最高升波幅:' + str(self.higest_pencentage) + '%')
     result_begin_offset = np.where(self.final_output == np.amax(self.final_output))[0][0]
     result_end_offset = np.where(self.final_output == np.amax(self.final_output))[1][0]
-    result_begin_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_begin_offset)
-    result_end_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_end_offset)
-    print('出現時段: ' + str(result_begin_date.month) + "-" + str(result_begin_date.day) + "最低位至" + str(result_end_date.month) + "-" + str(result_end_date.day))
+    self.result_begin_date = pd.Timestamp(dt.datetime.now().year, begin_month, begin_day) + pd.Timedelta(days=result_begin_offset)
+    self.result_end_date = pd.Timestamp(dt.datetime.now().year, begin_month, begin_day) + pd.Timedelta(days=result_end_offset)
+    print('出現時段: ' + str(self.result_begin_date.month) + "-" + str(self.result_begin_date.day) + "最低位至" + str(self.result_end_date.month) + "-" + str(self.result_end_date.day))
     final_output_df = pd.DataFrame(self.final_output)
     final_output_df.to_excel(code + '_output.xlsx') # For backtest
 
@@ -39,7 +40,8 @@ def gen_data(data, day_range):
   for i in range(day_range):
     for j in range(i + 1, day_range):
       if ( j > i ):
-        period_highest = (((dayHigh[i:(j+1)].max())/(dayLow[i])) - 1) * 100
+        #理論上應dayHigh[i+1], 因為無法捕捉當日最低位，或當日最高位出現在最低位前面
+        period_highest = (((dayHigh[(i):(j+1)].max())/(dayLow[i])) - 1) * 100
         output[i][j] = period_highest
   output = np.round_(output, decimals = 2)
   #print(output)
@@ -96,10 +98,10 @@ def get_final_output(high_of_every_year, prob, history_years, day_range):
 
 def main():
   #=========begin input value=========
-  begin_month = 6
-  end_month = 6
-  begin_day = 11
-  end_day = 15
+  begin_month = 7
+  end_month = 8
+  begin_day = 1
+  end_day = 30
   prob = 0.9
   code = '0700.HK'
   ##=========end input value=========
@@ -116,7 +118,7 @@ def main():
 
   raw_data, begin_year = get_raw_data(code)
   years = np.sort(raw_data.Year.unique())
-  #years = [2021]
+  #years = [2008]
   if (len(years) > 1):
     history_years = np.delete(years, len(years) - 1)
   else:
@@ -125,15 +127,26 @@ def main():
   high_of_every_year, day_range = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
   result = Result()
   result.final_output, result.prob_output, result.higest_pencentage = get_final_output(high_of_every_year, prob, history_years, day_range)
+  result.print_data(begin_year, begin_month, begin_day, end_month, end_day, code, years, prob)
   #print('=========歷史矩陣=========')
   #print(final_output)
   #print(prob_output) 
 
-  result.print_data(begin_year, begin_month, begin_day, end_month, end_day, code, years, prob)
-
-  user_input = input("任意鍵退出或r重新開始: ")
-  if (user_input.upper() == 'R'):
-    main()
+  if (result.result_begin_date > pd.Timestamp(dt.datetime.now().year, dt.datetime.now().month, dt.datetime.now().day)):
+    print('今年未開始')
+  else:
+    this_year_result = Result()
+    high_of_this_year, day_range = get_high_low_of_every_year(raw_data, [dt.datetime.now().year], result.result_begin_date.month, result.result_begin_date.day, result.result_end_date.month, result.result_end_date.day)
+    this_year_result.final_output, this_year_result.prob_output, this_year_result.higest_pencentage = get_final_output(high_of_this_year, prob, [dt.datetime.now().year], day_range)
+    if (result.result_end_date < pd.Timestamp(dt.datetime.now().year, dt.datetime.now().month, dt.datetime.now().day)):
+      print('今年時段已完結！！！')
+    if (this_year_result.higest_pencentage < result.higest_pencentage):
+      print('今年未中，暫時最高升幅: ' + str(this_year_result.higest_pencentage) + '%')
+    else:
+      print('今年已中，暫時最高升幅: ' + str(this_year_result.higest_pencentage) + '%')
+  #user_input = input("任意鍵退出或r重新開始: ")
+  #if (user_input.upper() == 'R'):
+  #  main()
 
 if __name__ == "__main__":
   main()
