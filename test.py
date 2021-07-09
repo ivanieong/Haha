@@ -4,6 +4,22 @@ import yfinance as yf
 import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+class Result:
+  final_output = []
+  prob_output = []
+  higest_pencentage = 0
+
+  def print_data(self, begin_year, begin_month, begin_day, end_month, end_day, code, years, prob):
+    print('在' + str(begin_month) + '月' + str(begin_day) + '日到' +str(end_month) + '月' + str(end_day) + '日中:')
+    print(code + '過往' + str(len(years)) + '年' + str(prob*100) + '%機率出現最高升波幅:' + str(self.higest_pencentage) + '%')
+    result_begin_offset = np.where(self.final_output == np.amax(self.final_output))[0][0]
+    result_end_offset = np.where(self.final_output == np.amax(self.final_output))[1][0]
+    result_begin_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_begin_offset)
+    result_end_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_end_offset)
+    print('出現時段: ' + str(result_begin_date.month) + "-" + str(result_begin_date.day) + "最低位至" + str(result_end_date.month) + "-" + str(result_end_date.day))
+    final_output_df = pd.DataFrame(self.final_output)
+    final_output_df.to_excel(code + '_output.xlsx') # For backtest
+
 #加back test 今年和過去
 def countif(value, seq):
   return sum(1 for item in seq if (value <= item))
@@ -80,10 +96,10 @@ def get_final_output(high_of_every_year, prob, history_years, day_range):
 
 def main():
   #=========begin input value=========
-  begin_month = 5
-  end_month = 7
-  begin_day = 25
-  end_day = 19
+  begin_month = 6
+  end_month = 6
+  begin_day = 11
+  end_day = 15
   prob = 0.9
   code = '0700.HK'
   ##=========end input value=========
@@ -96,7 +112,7 @@ def main():
   end_day = int(input("輸入結束日期(1-31): "))
   prob = int(input("輸入出現機率%(輸入格式如: 90, 80): ")) / 100
   '''
-  yf.download(code, period="max", auto_adjust=True, proxy="192.168.61.211:80").to_csv(code + '.csv')
+  yf.download(code, period="max", auto_adjust=True).to_csv(code + '.csv')
 
   raw_data, begin_year = get_raw_data(code)
   years = np.sort(raw_data.Year.unique())
@@ -107,22 +123,16 @@ def main():
     history_years = years
   #print(history_years, months, days)
   high_of_every_year, day_range = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
-  final_output, prob_output, higest_pencentage = get_final_output(high_of_every_year, prob, history_years, day_range)
+  result = Result()
+  result.final_output, result.prob_output, result.higest_pencentage = get_final_output(high_of_every_year, prob, history_years, day_range)
   #print('=========歷史矩陣=========')
   #print(final_output)
   #print(prob_output) 
-  print('在' + str(begin_month) + '月' + str(begin_day) + '日到' +str(end_month) + '月' + str(end_day) + '日中:')
-  print(code + '過往' + str(len(years)) + '年' + str(prob*100) + '%機率出現最高升波幅:' + str(higest_pencentage) + '%')
-  result_begin_offset = np.where(final_output == np.amax(final_output))[0][0]
-  result_end_offset = np.where(final_output == np.amax(final_output))[1][0]
-  result_begin_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_begin_offset)
-  result_end_date = pd.Timestamp(begin_year, begin_month, begin_day) + pd.Timedelta(days=result_end_offset)
-  print('出現時段: ' + str(result_begin_date.month) + "-" + str(result_begin_date.day) + "最低位至" + str(result_end_date.month) + "-" + str(result_end_date.day))
 
-  final_output_df = pd.DataFrame(final_output)
-  final_output_df.to_excel(code + '_output.xlsx') # For backtest
+  result.print_data(begin_year, begin_month, begin_day, end_month, end_day, code, years, prob)
+
   user_input = input("任意鍵退出或r重新開始: ")
-  if (user_input == 'r'):
+  if (user_input.upper() == 'R'):
     main()
 
 if __name__ == "__main__":
