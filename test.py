@@ -10,7 +10,7 @@ class Result:
   prob_output = []
   higest_pencentage = 0
 
-  def print_data(self, begin_year, begin_month, begin_day, end_month, end_day, code, years, prob):
+  def print_data(self, begin_month, begin_day, end_month, end_day, code, years, prob):
     print('在' + str(begin_month) + '月' + str(begin_day) + '日到' +str(end_month) + '月' + str(end_day) + '日中:')
     print(code + '過往' + str(len(years)) + '年' + str(prob*100) + '%機率出現最高升波幅:' + str(self.higest_pencentage) + '%')
     result_begin_offset = np.where(self.final_output == np.amax(self.final_output))[0][0]
@@ -40,7 +40,7 @@ def gen_data(data, day_range):
   for i in range(day_range):
     for j in range(i + 1, day_range):
       if ( j > i ):
-        #理論上應dayHigh[i+1], 因為無法捕捉當日最低位，或當日最高位出現在最低位前面
+        #理論上應dayHigh[(i+1):(j+1)].max(), 因為無法捕捉當日最低位，或當日最高位出現在最低位前面
         period_highest = (((dayHigh[(i):(j+1)].max())/(dayLow[i])) - 1) * 100
         output[i][j] = period_highest
   output = np.round_(output, decimals = 2)
@@ -62,7 +62,7 @@ def get_raw_data(code):
   raw_data.rename(columns = {'index':'Date'}, inplace=True)
   raw_data[["Year"]] = raw_data["Date"].dt.year
   print(raw_data)
-  return raw_data, begin_year
+  return raw_data
 
 def get_high_low_of_every_year(raw_data, years, begin_month, begin_day, end_month, end_day):
   high_of_every_year = []
@@ -74,7 +74,7 @@ def get_high_low_of_every_year(raw_data, years, begin_month, begin_day, end_mont
     #print(request_data)
     output = gen_data(request_data, len(request_data))
     high_of_every_year.append(output)
-  return high_of_every_year, len(request_data)
+  return high_of_every_year, request_data
 
 #find 90% value
 def get_final_output(high_of_every_year, prob, history_years, day_range):
@@ -98,8 +98,8 @@ def get_final_output(high_of_every_year, prob, history_years, day_range):
 
 def main():
   #=========begin input value=========
-  begin_month = 7
-  end_month = 8
+  begin_month = 5
+  end_month = 5
   begin_day = 1
   end_day = 30
   prob = 0.9
@@ -116,34 +116,39 @@ def main():
   '''
   yf.download(code, period="max", auto_adjust=True).to_csv(code + '.csv')
 
-  raw_data, begin_year = get_raw_data(code)
+  raw_data = get_raw_data(code)
   years = np.sort(raw_data.Year.unique())
-  #years = [2008]
+  #years = [2008] For testing
   if (len(years) > 1):
     history_years = np.delete(years, len(years) - 1)
   else:
     history_years = years
-  #print(history_years, months, days)
-  high_of_every_year, day_range = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
+  high_of_every_year, request_data = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
   result = Result()
-  result.final_output, result.prob_output, result.higest_pencentage = get_final_output(high_of_every_year, prob, history_years, day_range)
-  result.print_data(begin_year, begin_month, begin_day, end_month, end_day, code, years, prob)
+  result.final_output, result.prob_output, result.higest_pencentage = get_final_output(high_of_every_year, prob, history_years, len(request_data))
+  result.print_data(begin_month, begin_day, end_month, end_day, code, years, prob)
   #print('=========歷史矩陣=========')
   #print(final_output)
   #print(prob_output) 
 
-  if (result.result_begin_date > pd.Timestamp(dt.datetime.now().year, dt.datetime.now().month, dt.datetime.now().day)):
+  #=====Begin This Year Result
+  high_of_this_year, request_data = get_high_low_of_every_year(raw_data, [dt.datetime.now().year], result.result_begin_date.month, result.result_begin_date.day, result.result_end_date.month, result.result_end_date.day)
+  if (request_data.empty):
     print('今年未開始')
   else:
-    this_year_result = Result()
-    high_of_this_year, day_range = get_high_low_of_every_year(raw_data, [dt.datetime.now().year], result.result_begin_date.month, result.result_begin_date.day, result.result_end_date.month, result.result_end_date.day)
-    this_year_result.final_output, this_year_result.prob_output, this_year_result.higest_pencentage = get_final_output(high_of_this_year, prob, [dt.datetime.now().year], day_range)
+    this_year_period_highest = np.round_((((request_data['High'].reset_index()['High'][0:len(request_data)].max())/(request_data['Low'].reset_index()['Low'][0])) - 1) * 100, decimals = 2)
+    this_year_price = request_data['Low'].reset_index()['Low'][0]
+    this_year_target_price = np.round_(this_year_price * (result.higest_pencentage/100 + 1), decimals = 2)
+    print(str(result.result_begin_date.date()) + ' 最低位置: ' + str(this_year_price))
+    print('今年目標價格: ' + str(this_year_target_price))
     if (result.result_end_date < pd.Timestamp(dt.datetime.now().year, dt.datetime.now().month, dt.datetime.now().day)):
       print('今年時段已完結！！！')
-    if (this_year_result.higest_pencentage < result.higest_pencentage):
-      print('今年未中，暫時最高升幅: ' + str(this_year_result.higest_pencentage) + '%')
+    if (this_year_period_highest < result.higest_pencentage):
+      print('今年未中，暫時最高升幅: ' + str(this_year_period_highest) + '%')
     else:
-      print('今年已中，暫時最高升幅: ' + str(this_year_result.higest_pencentage) + '%')
+      print('今年已中，暫時最高升幅: ' + str(this_year_period_highest) + '%')
+  #=====End This Year Result
+
   #user_input = input("任意鍵退出或r重新開始: ")
   #if (user_input.upper() == 'R'):
   #  main()
