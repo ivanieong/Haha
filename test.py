@@ -9,8 +9,10 @@ class Result:
   final_output = []
   prob_output = []
   higest_pencentage = 0
+  high_of_every_year = []
 
   def print_data(self, begin_month, begin_day, end_month, end_day, code, years, prob):
+    writer = pd.ExcelWriter(code + '_output.xlsx', engine='xlsxwriter')
     print('在' + str(begin_month) + '月' + str(begin_day) + '日到' +str(end_month) + '月' + str(end_day) + '日中:')
     print(code + '過往' + str(len(years)) + '年' + str(prob*100) + '%機率出現最高升波幅:' + str(self.higest_pencentage) + '%')
     result_begin_offset = np.where(self.final_output == np.amax(self.final_output))[0][0]
@@ -19,7 +21,15 @@ class Result:
     self.result_end_date = pd.Timestamp(dt.datetime.now().year, begin_month, begin_day) + pd.Timedelta(days=result_end_offset)
     print('出現時段: ' + str(self.result_begin_date.month) + "-" + str(self.result_begin_date.day) + "最低位至" + str(self.result_end_date.month) + "-" + str(self.result_end_date.day))
     final_output_df = pd.DataFrame(self.final_output)
-    final_output_df.to_excel(code + '_output.xlsx') # For backtest
+    final_output_df.to_excel(writer, sheet_name='final_ouput') # For backtest
+    
+    max_vol_of_years = []
+    for i in range(len(years)):
+      max_vol_of_years.append(self.high_of_every_year[i][0].max())
+      pd.DataFrame(self.high_of_every_year[i]).to_excel(writer, sheet_name=str(i))
+    writer.save()
+    print('輸入時間段在起始日歷年最大升波幅:')
+    print(np.sort(max_vol_of_years))
 
 #加back test 今年和過去
 def countif(value, seq):
@@ -98,12 +108,12 @@ def get_final_output(high_of_every_year, prob, history_years, day_range):
 
 def main():
   #=========begin input value=========
-  begin_month = 5
-  end_month = 5
+  begin_month = 7
+  end_month = 8
   begin_day = 1
   end_day = 30
-  prob = 0.9
-  code = '0700.HK'
+  prob = 0.90
+  code = '^HSI'
   ##=========end input value=========
 
   '''
@@ -118,15 +128,15 @@ def main():
 
   raw_data = get_raw_data(code)
   years = np.sort(raw_data.Year.unique())
-  #years = [2008] For testing
+  years = [2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019, 2020, 2021] #For testing
   if (len(years) > 1):
     history_years = np.delete(years, len(years) - 1)
   else:
     history_years = years
-  high_of_every_year, request_data = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
   result = Result()
-  result.final_output, result.prob_output, result.higest_pencentage = get_final_output(high_of_every_year, prob, history_years, len(request_data))
-  result.print_data(begin_month, begin_day, end_month, end_day, code, years, prob)
+  result.high_of_every_year, request_data = get_high_low_of_every_year(raw_data, history_years, begin_month, begin_day, end_month, end_day)
+  result.final_output, result.prob_output, result.higest_pencentage = get_final_output(result.high_of_every_year, prob, history_years, len(request_data))
+  result.print_data(begin_month, begin_day, end_month, end_day, code, history_years, prob)
   #print('=========歷史矩陣=========')
   #print(final_output)
   #print(prob_output) 
